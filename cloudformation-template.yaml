@@ -1,0 +1,525 @@
+#
+# cloudformation-template.yaml - Template to deploy AWS resources
+# Copyright 2017-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License").
+# You may not use this file except in compliance with the License.
+# A copy of the License is located at
+#
+# http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is distributed 
+# on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either 
+# express or implied. See the License for the specific language governing 
+#  permissions and limitations under the License.
+#
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: Reduce latency of hybrid architectures with Amazon ElastiCache
+
+Metadata:
+    About:
+        Description: "Reduce latency of hybrid architectures with Amazon ElastiCache"
+    Author:
+        Description: "Angel Leon"
+    Date:
+        Description: "2017-12-07"
+    AWS::CloudFormation::Interface:
+        ParameterGroups:
+            - Label:
+                default: "Main Configuration"
+              Parameters:
+                - CustomerAddress
+                - KeyName
+                - DatabasePassword
+                - CacheToken
+                - Vpc
+                - Subnet
+            - Label:
+                default: "Tag Configuration"
+              Parameters:
+                - Architect
+                - ArchitectEmail
+                - Customer
+                - Project
+            - Label:
+                default: "Cache Configuration"
+              Parameters:
+                - CacheClusterName
+                - CacheInstanceType
+                - CachePort
+                - CacheEngine
+                - CacheEngineVersion
+            - Label:
+                default: "Web Instance Configuration"
+              Parameters:
+                - WebInstanceType
+                - WebVolumeSize
+            - Label:
+                default: "Database Configuration"
+              Parameters:
+                - DatabaseName
+                - DatabaseUsername
+                - DBInstanceIdentifier
+                - DatabaseInstanceType
+                - DatabaseEngine
+                - DatabaseEngineVersion
+                - DatabaseMultiAZ
+                - DatabaseVolumeSize
+                - DatabaseVolumeType
+        ParameterLabels:
+            CustomerAddress:
+                default: "Your IP address"
+            DatabasePassword:
+                default: "DB Password"
+
+Parameters:
+    Architect:
+        Type: String
+        Default: "Your Name"
+        Description: "Your name or architect name"
+        AllowedPattern: "[a-zA-Z0-9 ]*"
+    ArchitectEmail:
+        Type: String
+        Default: "your@email.com"
+        Description: "Your email address or architect email"
+        AllowedPattern: "[a-zA-Z0-9@.]*"
+    Project:
+        Type: String
+        Default: "HybridArchitectureDemo"
+        Description: "Project Name"
+        AllowedPattern: "[a-zA-Z0-9 ]*"
+    Customer:
+        Type: String
+        Default: "My Customer Name"
+        Description: "My company name or customer name"
+        AllowedPattern: "[a-zA-Z0-9 ]*"
+    CustomerAddress:
+        Type: String
+        Default: "10.0.0.5/32"
+        Description: "Source address allowed to connect to EC2 instance, YOU SHOULD INCLUDE /32 at the end of your IP. You can also use 0.0.0.0/0 for open access, however, is NOT RECOMMENDED"
+    CacheToken:
+        Type: String
+        Description: "Auth token used to connect securely into Redis, between 16-128 characters"
+        NoEcho: true
+        AllowedPattern: "[a-zA-Z0-9]*"
+        MinLength: 16
+        MaxLength: 128
+    CacheInstanceType:
+        Type: String
+        Default: cache.t2.small
+        Description: "ElastiCache Instance types, i.e. cache.t2.small, cache.m3.large, etc"
+        AllowedValues:
+            - cache.t2.micro
+            - cache.t2.small
+            - cache.t2.medium
+            - cache.m4.large
+            - cache.m4.xlarge
+            - cache.m4.2xlarge
+            - cache.m4.4xlarge
+            - cache.m4.10xlarge
+            - cache.r4.large
+            - cache.r4.xlarge
+            - cache.r4.2xlarge
+            - cache.r4.4xlarge
+            - cache.r4.8xlarge
+            - cache.r4.16xlarge
+    CacheClusterName:
+        Type: String
+        Default: "HybridCacheCluster"
+        Description: "Cache Cluster Name"
+        AllowedPattern: "[a-zA-Z0-9]*"
+    CachePort:
+        Type: Number
+        Default: 6379
+        Description: "Amazon ElastiCache for Redis port"
+        AllowedValues:
+            - 6379
+    CacheEngine:
+        Type: String
+        Default: redis
+        Description: "Amazon ElastiCache Engine, only redis is supported in this template"
+        AllowedValues:
+            - redis
+    CacheEngineVersion:
+        Type: String
+        Default: 3.2.6
+        Description: "Amazon ElastiCache Engine version"
+        AllowedValues:
+            - 3.2.6
+    WebInstanceType:
+        Type: String
+        Default: t2.small
+        Description: "Instance type, i.e. t2.small, m3.large, m4.xlarge, etc"
+        AllowedValues:
+            - t2.nano
+            - t2.micro
+            - t2.small
+            - t2.medium
+            - t2.large
+            - t2.xlarge
+            - t2.2xlarge
+            - m4.large
+            - m4.xlarge
+            - m4.2xlarge
+            - m4.4xlarge
+            - m4.10xlarge
+            - m4.16xlarge
+            - m5.large
+            - m5.xlarge
+            - m5.2xlarge
+            - m5.4xlarge
+            - m5.12xlarge
+            - m5.24xlarge
+    WebVolumeSize:
+        Type: Number
+        Default: 10
+        Description: "Instance EBS volume size in GB, 10, 25, 100, etc"
+        MinValue: 10
+        MaxValue: 100
+    DatabaseInstanceType:
+        Type: String
+        Default: db.t2.micro
+        Description: "RDS MySQL Instance types, i.e. db.t2.micro, db.t2.small, db.m3.medium, db.m4.xlarge, etc"
+        AllowedValues:
+            - db.t2.micro
+            - db.t2.small
+            - db.t2.medium
+            - db.t2.large
+            - db.t2.xlarge
+            - db.t2.2xlarge
+            - db.m4.large
+            - db.m4.xlarge
+            - db.m4.2xlarge
+            - db.m4.4xlarge
+            - db.r4.large
+            - db.r4.xlarge
+            - db.r4.2xlarge
+            - db.r4.4xlarge
+            - db.r4.8xlarge
+            - db.r4.16xlarge
+    DBInstanceIdentifier:
+        Type: String
+        Default: "HybridDatabase"
+        Description: "Database Name"
+        AllowedPattern: "[a-zA-Z0-9]*"
+    DatabaseName:
+        Type: String
+        Default: "demodb"
+        Description: "Database Name"
+        AllowedPattern: "[a-zA-Z0-9]*"
+    DatabaseUsername:
+        Type: String
+        Default: "demodb"
+        Description: "Database Username"
+        AllowedPattern: "[a-zA-Z0-9]*"
+    DatabasePassword:
+        Type: String
+        Description: "Database Password, between 8-41 characters"
+        NoEcho: true
+        AllowedPattern: "[a-zA-Z0-9]*"
+        MinLength: 8
+        MaxLength: 41
+    DatabaseEngine:
+        Type: String
+        Default: mysql
+        Description: "Database Engine, only MySQL is supported by this template"
+        AllowedValues:
+            - mysql
+    DatabaseMultiAZ:
+        Type: String
+        Default: false
+        Description: "Database MultiAZ feature to enable high availability feature"
+        AllowedValues:
+            - false
+            - true
+    DatabaseEngineVersion:
+        Type: String
+        Default: "5.7.19"
+        Description: "Database Engine version, MySQL version"
+        AllowedValues:
+            - 5.7.19
+            - 5.6.37
+            - 5.5.57
+    DatabaseVolumeSize:
+        Type: Number
+        Default: 10
+        Description: "Database Volume Size in GB"
+        MinValue: 10
+        MaxValue: 100
+    DatabaseVolumeType:
+        Type: String
+        Default: "gp2"
+        Description: "Database Volume Type, gp2 for General Purpose SSD"
+        AllowedValues:
+            - gp2
+    Vpc:
+        Type: AWS::EC2::VPC::Id
+        Description: "VPC where the instances will be placed"
+    Subnet:
+        Type: AWS::EC2::Subnet::Id
+        Description: "Subnet Id where EC2 instance will be placed"
+    KeyName:
+        Type: AWS::EC2::KeyPair::KeyName
+        Description: "Key pair name used grant access to the EC2 instance"
+
+Mappings:
+    RegionMap:
+        us-east-1:
+            AMI: ami-97785bed
+            DeviceName: /dev/xvda
+        us-east-2:
+            AMI: ami-f63b1193
+            DeviceName: /dev/xvda
+        us-west-1:
+            AMI: ami-824c4ee2
+            DeviceName: /dev/xvda
+        us-west-2:
+            AMI: ami-f2d3638a
+            DeviceName: /dev/xvda
+        ca-central-1:
+            AMI: ami-a954d1cd
+            DeviceName: /dev/xvda
+        eu-west-1:
+            AMI: ami-d834aba1
+            DeviceName: /dev/xvda
+        eu-central-1:
+            AMI: ami-5652ce39
+            DeviceName: /dev/xvda
+        eu-west-2:
+            AMI: ami-403e2524
+            DeviceName: /dev/xvda
+        eu-west-3:
+            AMI: ami-8ee056f3
+            DeviceName: /dev/xvda
+        ap-southeast-1:
+            AMI: ami-68097514
+            DeviceName: /dev/xvda
+        ap-southeast-1:
+            AMI: ami-863090e8
+            DeviceName: /dev/xvda
+        ap-northeast-1:
+            AMI: ami-ceafcba8
+            DeviceName: /dev/xvda
+        ap-northeast-2:
+            AMI: ami-923d12f5
+            DeviceName: /dev/xvda
+        ap-south-1:
+            AMI: ami-531a4c3c
+            DeviceName: /dev/xvda
+        sa-east-1:
+            AMI: ami-84175ae8
+            DeviceName: /dev/xvda
+    
+Resources:
+    WebRole:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: 2012-10-17
+                Statement:
+                    - Effect: Allow
+                      Action:
+                          - sts:AssumeRole
+                      Principal:
+                        Service: 
+                            - ec2.amazonaws.com
+    WebInstanceProfile:
+        Type: AWS::IAM::InstanceProfile
+        Properties:
+            Path: /
+            Roles:
+                - !Ref WebRole
+    WebSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: "Web SG"
+            VpcId:
+                Ref: Vpc
+            SecurityGroupIngress:
+                - IpProtocol: tcp
+                  FromPort: 80
+                  ToPort: 80
+                  CidrIp: !Ref CustomerAddress
+                - IpProtocol: tcp
+                  FromPort: 22
+                  ToPort: 22
+                  CidrIp: !Ref CustomerAddress
+                - IpProtocol: icmp
+                  FromPort: -1
+                  ToPort: -1
+                  CidrIp: !Ref CustomerAddress
+            SecurityGroupEgress:
+                - IpProtocol: tcp
+                  FromPort: !Ref CachePort
+                  ToPort: !Ref CachePort
+                  CidrIp: 0.0.0.0/0
+                - IpProtocol: tcp
+                  FromPort: 80
+                  ToPort: 80
+                  CidrIp: 0.0.0.0/0
+                - IpProtocol: tcp
+                  FromPort: 443
+                  ToPort: 443
+                  CidrIp: 0.0.0.0/0
+                - IpProtocol: tcp
+                  FromPort: 9418
+                  ToPort: 9418
+                  CidrIp: 0.0.0.0/0
+                - IpProtocol: tcp
+                  FromPort: 3306
+                  ToPort: 3306
+                  CidrIp: 0.0.0.0/0
+            Tags:
+                - Key: Name
+                  Value: !Join [ "", [ !Ref Project, -WEB-SG ] ]
+                - Key: Customer
+                  Value: !Ref Customer
+                - Key: Project
+                  Value: !Ref Project
+                - Key: Architect
+                  Value: !Ref Architect
+                - Key: ArchitectEmail
+                  Value: !Ref ArchitectEmail
+
+    # Web Instances
+    WebInstance:
+        DependsOn:
+            - CacheCluster
+            - DatabaseInstance
+        Type: AWS::EC2::Instance
+        Properties:
+            ImageId: !FindInMap [ RegionMap, !Ref "AWS::Region", AMI ]
+            IamInstanceProfile: !Ref WebInstanceProfile
+            InstanceType: !Ref WebInstanceType
+            SecurityGroupIds:
+                - !Ref WebSecurityGroup
+            SubnetId: !Ref Subnet
+            KeyName: !Ref KeyName
+            BlockDeviceMappings:
+                - DeviceName: !FindInMap [ RegionMap, !Ref "AWS::Region", DeviceName ]
+                  Ebs:
+                      VolumeSize: !Ref WebVolumeSize
+                      VolumeType: gp2
+            Tags:
+                - Key: Name
+                  Value: !Join [ "", [ !Ref Project, -WEB ] ]
+                - Key: Customer
+                  Value: !Ref Customer
+                - Key: Project
+                  Value: !Ref Project
+                - Key: Architect
+                  Value: !Ref Architect
+                - Key: ArchitectEmail
+                  Value: !Ref ArchitectEmail
+            UserData:
+                Fn::Base64: !Sub  |
+                    #!/bin/sh
+                    yum -y install git
+                    git clone https://github.com/awslabs/elasticache-hybrid-architecture-demo
+                    cd elasticache-hybrid-architecture-demo
+                    sh ./bootstrap.sh ${CacheCluster.RedisEndpoint.Address} ${CacheCluster.RedisEndpoint.Port} ${DatabaseInstance.Endpoint.Address} ${DatabaseUsername} ${DatabaseName} ${CacheToken}
+
+    # Amazon ElastiCache
+    CacheSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: ElastiCache SG
+            VpcId:
+                Ref: Vpc
+            SecurityGroupIngress:
+                - IpProtocol: tcp
+                  FromPort: !Ref CachePort
+                  ToPort: !Ref CachePort
+                  SourceSecurityGroupId: !GetAtt WebSecurityGroup.GroupId
+            Tags:
+                - Key: Name
+                  Value: !Join [ "", [ !Ref Project, -CACHE-SG ] ]
+                - Key: Customer
+                  Value: !Ref Customer
+                - Key: Project
+                  Value: !Ref Project
+                - Key: Architect
+                  Value: !Ref Architect
+                - Key: ArchitectEmail
+                  Value: !Ref ArchitectEmail
+    CacheCluster:
+        Type: AWS::ElastiCache::CacheCluster
+        Properties:
+            AutoMinorVersionUpgrade: true
+            CacheNodeType: !Ref CacheInstanceType
+            ClusterName: !Ref CacheClusterName
+            Engine: !Ref CacheEngine
+            EngineVersion: !Ref CacheEngineVersion
+            NumCacheNodes: 1
+            Port: !Ref CachePort
+            VpcSecurityGroupIds:
+                - !Ref CacheSecurityGroup
+            Tags:
+                - Key: Name
+                  Value: !Join [ "", [ !Ref Project, -CACHE-CLUSTER ] ]
+                - Key: Customer
+                  Value: !Ref Customer
+                - Key: Project
+                  Value: !Ref Project
+                - Key: Architect
+                  Value: !Ref Architect
+                - Key: ArchitectEmail
+                  Value: !Ref ArchitectEmail
+    DatabaseSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: Drupal Database SG
+            VpcId:
+                Ref: Vpc
+            SecurityGroupIngress:
+                - IpProtocol: tcp
+                  FromPort: 3306
+                  ToPort: 3306
+                  SourceSecurityGroupId: !GetAtt WebSecurityGroup.GroupId
+            Tags:
+                - Key: Name
+                  Value: !Join [ " ", [ !Ref Project, -DB-SG ] ]
+                - Key: Customer
+                  Value: !Ref Customer
+                - Key: Project
+                  Value: !Ref Project
+                - Key: Architect
+                  Value: !Ref Architect
+                - Key: ArchitectEmail
+                  Value: !Ref ArchitectEmail
+    DatabaseInstance:
+        Type: AWS::RDS::DBInstance
+        Properties:
+            DBName: !Ref DatabaseName
+            AllocatedStorage: !Ref DatabaseVolumeSize
+            DBInstanceClass: !Ref DatabaseInstanceType
+            StorageType: !Ref DatabaseVolumeType
+            Engine: !Ref DatabaseEngine
+            EngineVersion: !Ref DatabaseEngineVersion
+            MasterUsername: !Ref DatabaseUsername
+            MasterUserPassword: !Ref DatabasePassword
+            VPCSecurityGroups:
+                - !GetAtt DatabaseSecurityGroup.GroupId
+            MultiAZ: !Ref DatabaseMultiAZ
+            Tags:
+                - Key: Name
+                  Value: !Join [ " ", [ !Ref Project, -DB ] ]
+                - Key: Customer
+                  Value: !Ref Customer
+                - Key: Project
+                  Value: !Ref Project
+                - Key: Architect
+                  Value: !Ref Architect
+                - Key: ArchitectEmail
+                  Value: !Ref ArchitectEmail
+
+Outputs:
+    WebInstance:
+        Value: !GetAtt WebInstance.PublicDnsName
+    CacheCluster:
+        Value: !GetAtt CacheCluster.RedisEndpoint.Address
+    DemoScript:
+        Value: !Join [ "", [ "http://", !GetAtt WebInstance.PublicDnsName, "/demo.php" ] ]
+    DatabaseAddress:
+        Value: !GetAtt DatabaseInstance.Endpoint.Address
